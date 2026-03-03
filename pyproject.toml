@@ -1,0 +1,17 @@
+[project]
+name = "tomystbin"
+version = "1.0.0"
+description = "Tiny Discord bot helper to send code to Mystbin for easy sharing."
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "asqlite",
+    "discord-py>=2.7.0",
+    "jishaku>=2.6.3",
+    "mystbin-py",
+    "typing-extensions>=4.15.0",
+]
+
+[tool.uv.sources]
+asqlite = { git = "https://github.com/Rapptz/asqlite" }
+mystbin-py = { git = "https://github.com/PythonistaGuild/mystbin.py" }

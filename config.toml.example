@@ -1,0 +1,8 @@
+[bot]
+token = ""
+
+[mystbin]
+root_url = "https://mystbin.abstractumbra.dev/"
+
+[db]
+filename = "db"
