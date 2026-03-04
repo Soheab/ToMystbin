@@ -64,15 +64,8 @@ class MystBin(commands.Cog):
     async def cog_load(self) -> None:
         self.ctxmenu.on_error = self.mystbin_error
         self.bot.tree.add_command(self.ctxmenu)
-        self.session = aiohttp.ClientSession()
 
     async def cog_unload(self) -> None:
-        if self.session:
-            try:
-                await self.session.close()
-            finally:
-                self.session = None
-
         self.bot.tree.remove_command(self.ctxmenu.name, type=self.ctxmenu.type)
 
     # @commands.hybrid_command()
