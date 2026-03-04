@@ -83,7 +83,6 @@ class MystBin(commands.Cog):
     async def convert_mystbin(
         self, interaction: discord.Interaction[MystbinBot], message: discord.Message
     ) -> None:
-        assert self.session
         await interaction.response.defer()
 
         if (
