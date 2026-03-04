@@ -83,12 +83,12 @@ class MystbinBot(commands.Bot):
     # DB
 
     async def insert_paste_to_db(
-        self, paste: Paste, user_id: int, message_id: int, safety_token: str
+        self, paste_id: str, user_id: int, message_id: int, safety_token: str
     ) -> None:
         async with self.db.acquire() as conn:
             await conn.execute(
                 "INSERT INTO pastes (id, user_id, message_id, safety_token) VALUES (?, ?, ?, ?)",
-                (paste.id, user_id, message_id, safety_token),
+                (paste_id, user_id, message_id, safety_token),
             )
             await conn.commit()
 

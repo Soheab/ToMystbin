@@ -17,6 +17,7 @@ limitations under the License.
 
 from __future__ import annotations
 import datetime
+from typing import Any
 from typing import TYPE_CHECKING
 
 import aiohttp
@@ -61,6 +62,17 @@ class MystBin(commands.Cog):
 
         self._cache: LRUCache[int, TempPaste] = LRUCache(50)
 
+    async def _fallback_create_paste(
+        self, files: list[mystbin.File]
+    ) -> tuple[str, str | None]:
+        api_url: str = f"{self.bot.config.mystbin.root_url.rstrip('/')}/api/paste"
+        payload: dict[str, Any] = {"files": [file.to_dict() for file in files]}
+
+        async with self.bot.session.post(api_url, json=payload) as response:
+            response.raise_for_status()
+            data: dict[str, Any] = await response.json()
+            return data["id"], data.get("safety")
+
     async def cog_load(self) -> None:
         self.ctxmenu.on_error = self.mystbin_error
         self.bot.tree.add_command(self.ctxmenu)
@@ -95,6 +107,9 @@ class MystBin(commands.Cog):
         if cached and cached.last_edit == message.edited_at:
             try:
                 paste = await self.bot.fetch_paste(cached.id)
+            except AssertionError:
+                # Fallback to creating a new paste if mystbin.py fails internally.
+                pass
             except aiohttp.ClientResponseError as e:
                 if e.status != 404:
                     await interaction.followup.send(
@@ -129,16 +144,29 @@ class MystBin(commands.Cog):
             )
             files.append(mystbin.File(filename=f"{message.id}.txt", content=content))
 
+        identifier: str
+        url: str
+        token: str | None
+
         try:
             paste = await self.bot.api_client.create_paste(files=files[:5])
+            identifier = paste.id
+            url = paste.url
+            token = paste.security_token
+        except AssertionError:
+            try:
+                identifier, token = await self._fallback_create_paste(files[:5])
+                url = f"{self.bot.config.mystbin.root_url.rstrip('/')}/{identifier}"
+            except aiohttp.ClientResponseError as e:
+                await interaction.followup.send(
+                    f"An error occurred creating this paste: `{e.status}`"
+                )
+                return
         except aiohttp.ClientResponseError as e:
             await interaction.followup.send(
                 f"An error occurred creating this paste: `{e.status}`"
             )
             return
-        identifier: str = paste.id
-        url: str = paste.url
-        token: str | None = paste.security_token
 
         node = TempPaste(id=identifier, last_edit=message.edited_at)
         self._cache[message.id] = node
@@ -149,12 +177,18 @@ class MystBin(commands.Cog):
             "You may delete this data at any time using the button below."
         )
 
+        if token is None:
+            await interaction.followup.send(
+                f"Paste created: {url}\nNo safety token was returned, so it was not stored."
+            )
+            return
+
         new = await interaction.followup.send(msg, view=view, wait=True)
         await self.bot.insert_paste_to_db(
-            paste=paste,
+            paste_id=identifier,
             user_id=new.author.id,
             message_id=new.id,
-            safety_token=token,  # type: ignore
+            safety_token=token,
         )
 
     async def mystbin_error(
